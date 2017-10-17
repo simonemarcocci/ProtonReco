@@ -668,46 +668,37 @@ void ProtonReco::processMC( const art::Event& event, bool &isFiducial){
     //map of MC particles
     std::map< int, const simb::MCParticle* > particleMap;
 
+     // * info on vertexes
+    art::Handle< std::vector<recob::Vertex> > vertexListHandle;
+    std::vector<art::Ptr<recob::Vertex> >  vertexlist;
+    if ( event.getByLabel(fVertexModuleLabel , vertexListHandle) )
+	      art::fill_ptr_vector(vertexlist, vertexListHandle);
 
  //loop su frame di neutrino
  for ( auto const& neutrino_event : (MCeventlist) ) {
     
-      if( !neutrino_event->NeutrinoSet() ) //if there is no nu info, there was an error
+      if( !neutrino_event->NeutrinoSet() ) { //if there is no nu info, there was an error
 		 std::cout << "NO NEUTRINO INFO!! ERROR!!!!" << std::endl;
+		 exit(-1);
+      }
       
       simb::MCNeutrino nu = neutrino_event->GetNeutrino();
       if( nu.CCNC() != 0 ) continue; //we want only CC events!!
       simb::MCParticle neutrino = nu.Nu(); //get the neutrino
       
-      if (nu.Nu().PdgCode()!=fNeutrinoPDGcode) continue; //we want only nu mu
+      if (nu.Nu().PdgCode()!=fNeutrinoPDGcode) continue; //we want only nu mu or whatever is set in the fhicl
 
       //const TLorentzVector& nu_momentum = neutrino.Momentum(0); //store initial momentum
       //std::cout << nu_momentum.X() <<std::endl;
-      //const TLorentzVector& vertex =neutrino.Position(0);  //store initial position -> si puo' salvare tutti gli steps actually
-      //fnu_x = vertex.X();
-      //fnu_y = vertex.Y();
-      //fnu_z = vertex.Z();
-
-     // * info on vertexes
-      art::Handle< std::vector<recob::Vertex> > vertexListHandle;
-      std::vector<art::Ptr<recob::Vertex> >  vertexlist;
-      if ( event.getByLabel(fVertexModuleLabel , vertexListHandle) )
-	      art::fill_ptr_vector(vertexlist, vertexListHandle);
-
+      const TLorentzVector& vertex =neutrino.Position(0);  //store initial position -> si puo' salvare tutti gli steps actually
+      h_vertex_distribution->Fill(vertex.X(), vertex.Y(), vertex.Z());
      
-      //loop on vertexes
-      for ( auto const & vxt : vertexlist) {
-	double xyz[3];
-	vxt->XYZ(xyz);
-	h_vertex_distribution->Fill(xyz[0], xyz[1], xyz[2]);
-      }
-
       frun = event.run();
       fsubrun = event.subRun();
       fev = event.event();
 
       //GEANT particle info 
-      const sim::ParticleList& plist = bt->ParticleList();
+      //const sim::ParticleList& plist = bt->ParticleList();
       
       double muon_p = 0;
       double muon_px = 0;
@@ -718,18 +709,19 @@ void ProtonReco::processMC( const art::Event& event, bool &isFiducial){
       double muon_startz = 0;
 
       int n_mc_particles = 0;
-      for ( auto const& geant_particle : plist ) { //look for the muon first
-	if (geant_particle.second->PdgCode()!=13) continue;
+      for ( long ii=0; ii<neutrino_event->NParticles(); ii++) { //look for the muon first
+	simb::MCParticle geant_particle = (neutrino_event->GetParticle(ii)); 
+	 if (geant_particle.PdgCode()!=13) continue;
 		if (muon_p!=0) {
 			cout << "ERROR!!!! Muon should be 1!!!!" << endl;
 		}
-	muon_p = geant_particle.second->Momentum().Rho();
-	muon_px = geant_particle.second->Momentum().X();
-	muon_py = geant_particle.second->Momentum().Y();
-	muon_pz = geant_particle.second->Momentum().Z();
-	muon_startx = geant_particle.second->Position().X();
-	muon_starty = geant_particle.second->Position().Y();
-	muon_startz = geant_particle.second->Position().Z();
+	muon_p = geant_particle.Momentum().Rho();
+	muon_px = geant_particle.Momentum().X();
+	muon_py = geant_particle.Momentum().Y();
+	muon_pz = geant_particle.Momentum().Z();
+	muon_startx = geant_particle.Position().X();
+	muon_starty = geant_particle.Position().Y();
+	muon_startz = geant_particle.Position().Z();
 #if DEBUG == 1
 	cout << " p " << muon_p << endl;
 	cout << " modulus " << sqrt(muon_px*muon_px + muon_py*muon_py + muon_pz*muon_pz) << endl;
@@ -737,53 +729,55 @@ void ProtonReco::processMC( const art::Event& event, bool &isFiducial){
       }
 
       long total = 0 ;
-      for ( auto const& geant_particle : plist ) {
+      //for ( auto const& geant_particle : plist ) {
+      for ( long ii=0; ii<neutrino_event->NParticles(); ii++) { //look for the muon first
+	simb::MCParticle geant_particle = (neutrino_event->GetParticle(ii)); 
 	  
 	  //save only GENIE output and not the secondaries
-	  if (geant_particle.second->Mother() > 0) continue;
-	  if (geant_particle.second->StatusCode()!=1 ) continue;
+	  if (geant_particle.Mother() > 0) continue;
+	  if (geant_particle.StatusCode()!=1 ) continue;
 	
 	  n_mc_particles++;
 #if DEBUG == 1
-	      std::cout << ">>>>> Particle # " << geant_particle.first <<std::endl;
-	      std::cout << "Track ID " << geant_particle.second->TrackId() <<std::endl;
-	      std::cout << "PDG " << geant_particle.second->PdgCode() << " status " << geant_particle.second->StatusCode() <<std::endl;
-	      std::cout << "Mother " << geant_particle.second->Mother() << " " << geant_particle.second->Trajectory().size() <<std::endl;
-	      std::cout << "N tr points " << geant_particle.second->NumberTrajectoryPoints() << " trajectory points " << geant_particle.second->Trajectory().size() <<std::endl;
-	      std::cout << "Start X " << geant_particle.second->Position().X() << " Start Y " << geant_particle.second->Position().Y() << " Start Z " << geant_particle.second->Position().Z() <<std::endl;
-	      std::cout << "End X " << geant_particle.second->EndPosition().X() << " End Y " << geant_particle.second->EndPosition().Y() << " End Z " << geant_particle.second->EndPosition().Z() <<std::endl;
-	      std::cout << "Start PX " << geant_particle.second->Momentum().X() << " Start PY " << geant_particle.second->Momentum().Y() << " Start PZ " << geant_particle.second->Momentum().Z() <<std::endl;
-	      std::cout << "End PX " << geant_particle.second->EndMomentum().X() << " End PY " << geant_particle.second->EndMomentum().Y() << " End PZ " << geant_particle.second->EndMomentum().Z() <<std::endl;
+	      std::cout << ">>>>> Particle # " << ii <<std::endl;
+	      std::cout << "Track ID " << geant_particle.TrackId() <<std::endl;
+	      std::cout << "PDG " << geant_particle.PdgCode() << " status " << geant_particle.StatusCode() <<std::endl;
+	      std::cout << "Mother " << geant_particle.Mother() << " " << geant_particle.Trajectory().size() <<std::endl;
+	      std::cout << "N tr points " << geant_particle.NumberTrajectoryPoints() << " trajectory points " << geant_particle.Trajectory().size() <<std::endl;
+	      std::cout << "Start X " << geant_particle.Position().X() << " Start Y " << geant_particle.Position().Y() << " Start Z " << geant_particle.Position().Z() <<std::endl;
+	      std::cout << "End X " << geant_particle.EndPosition().X() << " End Y " << geant_particle.EndPosition().Y() << " End Z " << geant_particle.EndPosition().Z() <<std::endl;
+	      std::cout << "Start PX " << geant_particle.Momentum().X() << " Start PY " << geant_particle.Momentum().Y() << " Start PZ " << geant_particle.Momentum().Z() <<std::endl;
+	      std::cout << "End PX " << geant_particle.EndMomentum().X() << " End PY " << geant_particle.EndMomentum().Y() << " End PZ " << geant_particle.EndMomentum().Z() <<std::endl;
 #endif
-	      total+=geant_particle.second->NumberTrajectoryPoints();
+	      total+=geant_particle.NumberTrajectoryPoints();
 	//count particle types
-	if (fparticle_count.find( geant_particle.second->PdgCode() ) == fparticle_count.end()) //not found
-	     fparticle_count[ geant_particle.second->PdgCode() ] = 1;
+	if (fparticle_count.find( geant_particle.PdgCode() ) == fparticle_count.end()) //not found
+	     fparticle_count[ geant_particle.PdgCode() ] = 1;
 	else
-	     fparticle_count[geant_particle.second->PdgCode()] = fparticle_count[geant_particle.second->PdgCode()] +1;
+	     fparticle_count[geant_particle.PdgCode()] = fparticle_count[geant_particle.PdgCode()] +1;
 	
-	flength.push_back( geant_particle.second->Trajectory().TotalLength() );
-	fstartT.push_back( geant_particle.second->T() );
-	fstart_x.push_back ( geant_particle.second->Position().X() );
-	fstart_y.push_back ( geant_particle.second->Position().Y() );
-	fstart_z.push_back ( geant_particle.second->Position().Z() );
-	fend_x.push_back ( geant_particle.second->EndPosition().X() );
-	fend_y.push_back ( geant_particle.second->EndPosition().Y() );
-	fend_z.push_back ( geant_particle.second->EndPosition().Z() );
-	fn_steps.push_back ( geant_particle.second->Trajectory().size() );
-	fmother_id.push_back ( geant_particle.second->Mother() );
-	fpdg.push_back( geant_particle.second->PdgCode() );	
-	fg4_id.push_back(geant_particle.second->TrackId());
-	fp0.push_back( geant_particle.second->Momentum().Rho());
-	fp0x.push_back( geant_particle.second->Momentum().X() );
-	fp0y.push_back( geant_particle.second->Momentum().Y() );
-	fp0z.push_back( geant_particle.second->Momentum().Z() );
+	flength.push_back( geant_particle.Trajectory().TotalLength() );
+	fstartT.push_back( geant_particle.T() );
+	fstart_x.push_back ( geant_particle.Position().X() );
+	fstart_y.push_back ( geant_particle.Position().Y() );
+	fstart_z.push_back ( geant_particle.Position().Z() );
+	fend_x.push_back ( geant_particle.EndPosition().X() );
+	fend_y.push_back ( geant_particle.EndPosition().Y() );
+	fend_z.push_back ( geant_particle.EndPosition().Z() );
+	fn_steps.push_back ( geant_particle.Trajectory().size() );
+	fmother_id.push_back ( geant_particle.Mother() );
+	fpdg.push_back( geant_particle.PdgCode() );	
+	fg4_id.push_back(geant_particle.TrackId());
+	fp0.push_back( geant_particle.Momentum().Rho());
+	fp0x.push_back( geant_particle.Momentum().X() );
+	fp0y.push_back( geant_particle.Momentum().Y() );
+	fp0z.push_back( geant_particle.Momentum().Z() );
 	
 	//loop on other tracked_particles and decide if this is the leading based on initial kinetic energy. This must be done before filling the kinE vector for the current particle!
 	bool is_leading = true;
-	float current_kinE = geant_particle.second->E() - geant_particle.second->Mass() ;
+	float current_kinE = geant_particle.E() - geant_particle.Mass() ;
 	for (unsigned jj=0; jj< fkinE.size(); jj++) { //loop on previous particles
-	if ( fpdg[jj] == geant_particle.second->PdgCode() ) {
+	if ( fpdg[jj] == geant_particle.PdgCode() ) {
 	    if ( fkinE[jj] > current_kinE )
 	       is_leading = false;
 	    else if ( fkinE[jj] < current_kinE )
@@ -793,12 +787,12 @@ void ProtonReco::processMC( const art::Event& event, bool &isFiducial){
 	fis_leading.push_back( is_leading );
 
 	//now write current kin E
-	fkinE.push_back( geant_particle.second->E() - geant_particle.second->Mass() );
+	fkinE.push_back( geant_particle.E() - geant_particle.Mass() );
 
-	if ( geant_particle.second->Momentum().Rho() != 0) {
-	     fcostheta_muon.push_back( muon_px*geant_particle.second->Momentum().X()/geant_particle.second->Momentum().Rho()/muon_p
-			     	+ muon_py*geant_particle.second->Momentum().Y()/geant_particle.second->Momentum().Rho()/muon_p
-				+ muon_pz*geant_particle.second->Momentum().Z()/geant_particle.second->Momentum().Rho()/muon_p );
+	if ( geant_particle.Momentum().Rho() != 0) {
+	     fcostheta_muon.push_back( muon_px*geant_particle.Momentum().X()/geant_particle.Momentum().Rho()/muon_p
+			     	+ muon_py*geant_particle.Momentum().Y()/geant_particle.Momentum().Rho()/muon_p
+				+ muon_pz*geant_particle.Momentum().Z()/geant_particle.Momentum().Rho()/muon_p );
 	} else {
 	     fcostheta_muon.push_back(-2);
 	}
@@ -951,11 +945,11 @@ void ProtonReco::processMC( const art::Event& event, bool &isFiducial){
 	
     //now loop on MC particles and try to characterize non-reco tracks (position to 
 
-      if ( unsigned(plist.size()) != flength.size() ) {
+      //if ( unsigned(plist.size()) != flength.size() ) {
 	      //std::cout << "plist.size() " << plist.size()  << " flength.size()" << " " << flength.size() << std::endl;
 	      //std::cout << "ERROR!!!! Mismatch in number of MC particles and recorded MC particles" << std::endl;
 	      //exit(-1);
-      }
+     // }
 
       for ( unsigned j=0; j<flength.size(); j++) {
 	if ( fis_tracked[j] ) continue; //if is tracked, it's not interesting :)
