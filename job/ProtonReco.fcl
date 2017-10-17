@@ -1,0 +1,62 @@
+#include "services_microboone.fcl"
+#include "services_microboone_simulation.fcl" 
+#include "trackfindermodules_microboone.fcl"
+#include "proton_reconstruction.fcl"
+#include "mccheatermodules.fcl"
+
+process_name: ProtonReco
+
+services:
+{
+  scheduler:    { defaultExceptions: false }    # Make all uncaught exceptions fatal.
+  # Load the service that manages root files for histograms.
+  TFileService: { fileName: "ana_hist.root" }
+  TimeTracker:  {}
+  message:      @local::microboone_message_services_prod_debug
+  BackTracker: @local::microboone_backtracker
+  @table::microboone_services_reco
+  @table::microboone_basic_services
+  @table::microboone_g4_services
+  @table::microboone_detsim_services
+  @table::microboone_simulation_services
+}
+
+source:
+{
+  module_type: RootInput
+  firstEvent : 1
+  maxEvents:  -1
+}
+
+
+outputs:{}
+
+services.DetectorClocksService.InheritClockConfig: false
+services.DetectorClocksService.TriggerOffsetTPC: -0.400e3 #FONDAMENTALE
+
+physics:
+{
+
+  analyzers:
+  {
+        #check: @local::standard_recocheck
+	pandoraNu: @local::ProtonReco
+
+        #pandoraNuKHit: @local::ProtonReco
+	#pandoraCosmic:  @local::ProtonReco
+        #pandoraCosmicKHit:   @local::ProtonReco
+  }
+ # analysis: [pandoraNu, pandoraNuKHit, pandoraCosmic, pandoraCosmicKHit] #Directory for histograms
+  analysis: [pandoraNu ] #Directory for histograms
+  end_paths: [ analysis ]
+
+}
+
+physics.analyzers.pandoraNuKHit.TrackingAlgorithmLabel:       "pandoraNuKHit"
+physics.analyzers.pandoraNuKHit.CalorimetryModuleLabel:       "pandoraNuKHitcalo"
+
+#physics.analyzers.pandoraCosmic.TrackingAlgorithmLabel:       "pandoraCosmic"
+#physics.analyzers.pandoraCosmic.CalorimetryModuleLabel:       "pandoraCosmiccalo"
+
+#physics.analyzers.pandoraCosmicKHit.TrackingAlgorithmLabel:       "pandoraCosmicKHit"
+#physics.analyzers.pandoraCosmicKHit.CalorimetryModuleLabel:       "pandoraCosmicKHitcalo"

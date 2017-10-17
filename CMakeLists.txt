@@ -1,3 +1,5 @@
+add_subdirectory(job)
+
 art_make( 
 	#MODULE_LIBRARIES larcore_Geometry
           MODULE_LIBRARIES larcore_Geometry_Geometry_service

@@ -1,0 +1,20 @@
+BEGIN_PROLOG
+
+ProtonReco:
+{
+module_type:		"uboone/ProtonReco/ProtonReco"
+TrackModuleLabel:         "pandora"
+MCTruthModuleLabel:       "generator"
+MCTrackModuleLabel:       "mcreco"
+TrackingAlgorithmLabel:       "pandoraNu"
+CalorimetryModuleLabel:       "pandoraNucalo"
+NeutrinoPDGcode:       "14"
+FidVolCutX: "10"
+FidVolCutY: "20"
+FidVolCutZ: "10"
+VertexModuleLabel:       "pandoraNu"
+PFParticleModuleLabel:       "pandoraNu"
+DigitModuleLabel:       "daq"
+}
+
+END_PROLOG
