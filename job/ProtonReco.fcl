@@ -52,8 +52,8 @@ physics:
 
 }
 
-physics.analyzers.pandoraNuKHit.TrackingAlgorithmLabel:       "pandoraNuKHit"
-physics.analyzers.pandoraNuKHit.CalorimetryModuleLabel:       "pandoraNuKHitcalo"
+#physics.analyzers.pandoraNuKHit.TrackingAlgorithmLabel:       "pandoraNuKHit"
+#physics.analyzers.pandoraNuKHit.CalorimetryModuleLabel:       "pandoraNuKHitcalo"
 
 #physics.analyzers.pandoraCosmic.TrackingAlgorithmLabel:       "pandoraCosmic"
 #physics.analyzers.pandoraCosmic.CalorimetryModuleLabel:       "pandoraCosmiccalo"
